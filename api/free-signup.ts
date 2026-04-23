@@ -39,15 +39,28 @@ export default async function handler(req: any, res: any) {
 
     const { data: org, error: orgError } = await supabase
       .from('organizations')
-      .insert({ name: choirName, slug, plan: 'free', subscription_status: 'active', member_limit: 15, choir_limit: 1 })
-      .select().single()
+      .insert({
+        name: choirName,
+        slug,
+        plan: 'free',
+        subscription_status: 'active',
+        member_limit: 15,
+        choir_limit: 1,
+      })
+      .select()
+      .single()
 
     if (orgError) return res.status(500).json({ error: orgError.message })
 
     const { data: choir, error: choirError } = await supabase
       .from('choirs')
-      .insert({ organization_id: org.id, name: choirName, timezone: timezone || 'America/New_York' })
-      .select().single()
+      .insert({
+        organization_id: org.id,
+        name: choirName,
+        timezone: timezone || 'America/New_York',
+      })
+      .select()
+      .single()
 
     if (choirError) return res.status(500).json({ error: choirError.message })
 
@@ -66,16 +79,6 @@ export default async function handler(req: any, res: any) {
       })
 
     if (memberError) return res.status(500).json({ error: memberError.message })
-
-    try {
-      await supabase.auth.admin.generateLink({
-        type: 'recovery',
-        email,
-        options: { redirectTo: 'https://choiros.app/login' },
-      })
-    } catch (e) {
-      console.error('welcome recovery link failed', e)
-    }
 
     return res.status(200).json({ success: true, choirId: choir.id })
 
