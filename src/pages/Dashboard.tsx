@@ -1,23 +1,33 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 
 export default function Dashboard() {
-  const { member, choir, loading } = useAuth()
   const navigate = useNavigate()
+  const [, setChecking] = useState(true)
 
   useEffect(() => {
-    if (loading) return
-    if (!member) { navigate('/register/success'); return }
-    if (member.role === 'admin') { navigate('/admin'); return }
-    if (choir) { navigate('/app/choir/' + choir.id); return }
-    navigate('/register/success')
-  }, [member, choir, loading, navigate])
+    async function redirect() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { navigate('/login'); return }
+
+      const { data: member } = await supabase
+        .from('members')
+        .select('role, choir_id')
+        .eq('user_id', session.user.id)
+        .single()
+
+      if (!member) { navigate('/register/success'); return }
+      if (member.role === 'admin') { navigate('/admin'); return }
+      if (member.choir_id) { navigate('/app/choir/' + member.choir_id); return }
+      navigate('/register/success')
+    }
+    redirect().finally(() => setChecking(false))
+  }, [navigate])
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+    <div className='min-h-screen flex items-center justify-center'>
+      <div className='w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin' />
     </div>
   )
 }

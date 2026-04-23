@@ -32,16 +32,21 @@ export default function Login() {
   const onLogin = async (values: LoginForm) => {
     setError(null)
     setSubmitting(true)
-    const { error } = await supabase.auth.signInWithPassword({
-      email: values.email,
-      password: values.password,
-    })
-    setSubmitting(false)
-    if (error) {
-      setError(error.message)
-      return
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      })
+      if (error) {
+        setError(error.message)
+        return
+      }
+      navigate('/dashboard')
+    } catch (err: any) {
+      setError(err?.message || 'Sign in failed')
+    } finally {
+      setSubmitting(false)
     }
-    navigate('/dashboard')
   }
 
   const onReset = async (values: ResetForm) => {
