@@ -1,10 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
-
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -14,7 +9,7 @@ function slugify(name: string): string {
 }
 
 export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', process.env.VITE_APP_URL || 'https://choiros.app')
+  res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 
@@ -22,6 +17,19 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
+    const supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim()
+    const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('free-signup: missing Supabase env vars', {
+        hasUrl: Boolean(supabaseUrl),
+        hasKey: Boolean(supabaseKey),
+      })
+      return res.status(500).json({ error: 'Server misconfigured: missing Supabase credentials' })
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
     const { email, password, choirName, adminName, timezone } = req.body || {}
     if (!email || !password || !choirName || !adminName) {
       return res.status(400).json({ error: 'Missing required fields' })
@@ -32,7 +40,10 @@ export default async function handler(req: any, res: any) {
       password,
       email_confirm: true,
     })
-    if (authError) return res.status(400).json({ error: authError.message })
+    if (authError) {
+      console.error('free-signup: createUser failed', authError)
+      return res.status(400).json({ error: String(authError.message || authError) })
+    }
 
     const userId = authData.user!.id
 
@@ -48,7 +59,10 @@ export default async function handler(req: any, res: any) {
       })
       .select()
       .single()
-    if (orgErr) return res.status(500).json({ error: orgErr.message })
+    if (orgErr) {
+      console.error('free-signup: organization insert failed', orgErr)
+      return res.status(500).json({ error: String(orgErr.message || orgErr) })
+    }
 
     const { data: choir, error: choirErr } = await supabase
       .from('choirs')
@@ -59,7 +73,10 @@ export default async function handler(req: any, res: any) {
       })
       .select()
       .single()
-    if (choirErr) return res.status(500).json({ error: choirErr.message })
+    if (choirErr) {
+      console.error('free-signup: choir insert failed', choirErr)
+      return res.status(500).json({ error: String(choirErr.message || choirErr) })
+    }
 
     const nameParts = (adminName || '').trim().split(/\s+/)
     const firstName = nameParts[0] || email.split('@')[0]
@@ -75,11 +92,14 @@ export default async function handler(req: any, res: any) {
       role: 'admin',
       status: 'active',
     })
-    if (memberErr) return res.status(500).json({ error: memberErr.message })
+    if (memberErr) {
+      console.error('free-signup: member insert failed', memberErr)
+      return res.status(500).json({ error: String(memberErr.message || memberErr) })
+    }
 
     return res.status(200).json({ success: true })
   } catch (err: any) {
-    console.error('free-signup error', err)
-    return res.status(500).json({ error: err.message || 'Internal error' })
+    console.error('free-signup: unhandled error', err)
+    return res.status(500).json({ error: String(err?.message || err) })
   }
 }
