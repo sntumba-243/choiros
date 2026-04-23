@@ -35,24 +35,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: memberData, error } = await supabase
         .from('members')
-        .select('*, organizations(*), choirs(*)')
+        .select('*, organizations:organization_id(*), choirs:choir_id(*)')
         .eq('user_id', userId)
         .single()
 
       if (error || !memberData) {
-        console.error('fetchProfile error:', error?.message)
-        setMember(null)
-        setOrganization(null)
-        setChoir(null)
         setLoading(false)
         return
       }
 
-      setMember(memberData as Member)
-      if (memberData.organizations) setOrganization(memberData.organizations as any)
-      if (memberData.choirs) setChoir(memberData.choirs as any)
+      const { organizations, choirs, ...member } = memberData
+      setMember(member as Member)
+      if (organizations) setOrganization(organizations as any)
+      if (choirs) setChoir(choirs as any)
     } catch (err) {
-      console.error('fetchProfile catch:', err)
+      console.error('fetchProfile error:', err)
     } finally {
       setLoading(false)
     }
