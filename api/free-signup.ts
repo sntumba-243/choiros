@@ -61,14 +61,15 @@ export default async function handler(req: any, res: any) {
 
     try {
       const resend = new Resend(process.env.RESEND_API_KEY)
-      await resend.emails.send({
+      const emailResult = await resend.emails.send({
         from: 'ChoirOS <noreply@choiros.app>',
         to: email,
         subject: 'Welcome to ChoirOS!',
         html: '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px"><h1 style="color:#1a2744">Welcome to ChoirOS! 🎵</h1><p style="color:#4b5563;font-size:16px">Hi ' + adminName + ',</p><p style="color:#4b5563;font-size:16px">Your choir <strong>' + choirName + '</strong> is ready. Log in to get started.</p><a href="https://choiros.app/login" style="display:inline-block;background:#1a2744;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;margin:16px 0">Log in to ChoirOS</a><p style="color:#9ca3af;font-size:14px;margin-top:32px">© 2026 ChoirOS by iSpeed Tech</p></div>'
       })
-    } catch (emailErr) {
-      console.error('Welcome email failed:', emailErr)
+      console.log('Welcome email result:', JSON.stringify(emailResult))
+    } catch (emailErr: any) {
+      console.error('Welcome email error:', emailErr?.message)
     }
 
     return res.status(200).json({ success: true, choirId: choir.id })
