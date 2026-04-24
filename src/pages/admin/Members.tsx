@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Users, UserPlus, Search, Pencil, Trash2, X, ChevronRight } from 'lucide-react'
+import {
+  Users,
+  UserPlus,
+  Search,
+  Pencil,
+  Trash2,
+  X,
+  ChevronRight,
+  AlertCircle,
+  Send,
+} from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import {
   getMembersByChoirId,
-  createMember,
   deleteMember,
+  updateMember,
 } from '../../services/member.service'
 import type { Member, MemberRole, VoicePart } from '../../types/database'
 import { MemberAvatar } from '../../components/ui/MemberAvatar'
@@ -48,8 +58,38 @@ function relativeDate(iso: string) {
   return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short' }).format(d)
 }
 
+interface InvitePayload {
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
+  voicePart?: VoicePart
+  role?: MemberRole
+  choirId: string
+  organizationId: string
+  inviterName?: string
+  choirName?: string
+}
+
+async function inviteMember(
+  payload: InvitePayload,
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const res = await fetch('/api/invite-member', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, message: json.error || 'Failed to invite member' }
+    return { ok: true, message: json.message || 'Member invited' }
+  } catch (err: any) {
+    return { ok: false, message: err?.message || 'Network error' }
+  }
+}
+
 export default function AdminMembers() {
-  const { choir } = useAuth()
+  const { choir, organization, member: currentAdmin, loading: authLoading } = useAuth()
   const location = useLocation()
   const sizeClass = useAdaptiveLayout()
 
@@ -60,19 +100,35 @@ export default function AdminMembers() {
   const [addOpen, setAddOpen] = useState<boolean>(
     () => (location.state as { openAdd?: boolean } | null)?.openAdd === true,
   )
+  const [editingMember, setEditingMember] = useState<Member | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [resendingId, setResendingId] = useState<string | null>(null)
 
   async function loadMembers() {
     if (!choir?.id) return
-    setLoading(true)
     const data = await getMembersByChoirId(choir.id)
     setMembers(data)
-    setLoading(false)
   }
 
   useEffect(() => {
-    loadMembers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [choir?.id])
+    if (authLoading) return
+    if (!choir?.id) {
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      const data = await getMembersByChoirId(choir.id)
+      if (!cancelled) {
+        setMembers(data)
+        setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, choir?.id])
 
   const filtered = useMemo(() => {
     let list = members
@@ -101,6 +157,37 @@ export default function AdminMembers() {
     if (ok) setMembers((prev) => prev.filter((x) => x.id !== m.id))
   }
 
+  async function handleResend(m: Member) {
+    if (!choir?.id || !organization?.id) return
+    setResendingId(m.id)
+    const { ok, message } = await inviteMember({
+      firstName: (m.first_name || '').trim(),
+      lastName: (m.last_name || '').trim(),
+      email: m.email,
+      phone: m.phone || undefined,
+      voicePart: m.voice_part,
+      role: m.role,
+      choirId: choir.id,
+      organizationId: organization.id,
+      inviterName: currentAdmin?.first_name,
+      choirName: choir.name,
+    })
+    setResendingId(null)
+    if (ok) {
+      setSuccessMessage(message)
+      await loadMembers()
+      setTimeout(() => setSuccessMessage(null), 5000)
+    } else {
+      alert(message)
+    }
+  }
+
+  function showSuccess(message: string) {
+    setSuccessMessage(message)
+    setTimeout(() => setSuccessMessage(null), 5000)
+  }
+
+  const panelOpen = addOpen || editingMember !== null
   const isCompact = sizeClass === 'compact'
 
   return (
@@ -127,7 +214,10 @@ export default function AdminMembers() {
           )}
           <button
             type='button'
-            onClick={() => setAddOpen(true)}
+            onClick={() => {
+              setEditingMember(null)
+              setAddOpen(true)
+            }}
             className='inline-flex items-center gap-2 bg-blue text-white rounded-lg px-4 py-2 text-sm font-medium min-h-[44px] hover:bg-blue-light transition-colors'
           >
             <UserPlus className='w-4 h-4' />
@@ -136,6 +226,20 @@ export default function AdminMembers() {
           </button>
         </div>
       </header>
+
+      {successMessage && (
+        <div className='mx-4 mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm flex items-start justify-between gap-3'>
+          <span className='min-w-0'>{successMessage}</span>
+          <button
+            type='button'
+            onClick={() => setSuccessMessage(null)}
+            className='text-green-600 hover:text-green-800 flex-shrink-0 p-1 min-h-[24px] min-w-[24px]'
+            aria-label='Dismiss'
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <div className='px-4 sm:px-5 py-4 max-w-7xl mx-auto w-full space-y-4'>
         {isCompact && (
@@ -183,11 +287,11 @@ export default function AdminMembers() {
                   ? `No results for "${query}"`
                   : filter !== 'all'
                     ? 'Try a different filter.'
-                    : 'Add your first member to start building your choir.'
+                    : 'Invite your first member to start building your choir.'
               }
               action={
                 !query && filter === 'all'
-                  ? { label: 'Add your first member', onClick: () => setAddOpen(true) }
+                  ? { label: 'Invite your first member', onClick: () => setAddOpen(true) }
                   : undefined
               }
             />
@@ -199,17 +303,29 @@ export default function AdminMembers() {
                 key={m.id}
                 className='bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3 min-w-0'
               >
-                <MemberAvatar firstName={m.first_name} lastName={m.last_name} voicePart={m.voice_part} size='md' />
-                <div className='flex-1 min-w-0'>
-                  <div className='font-medium text-navy text-sm truncate'>
-                    {m.first_name} {m.last_name}
+                <button
+                  type='button'
+                  onClick={() => setEditingMember(m)}
+                  className='flex-1 flex items-center gap-3 min-w-0 text-left'
+                >
+                  <MemberAvatar firstName={m.first_name} lastName={m.last_name} voicePart={m.voice_part} size='md' />
+                  <div className='flex-1 min-w-0'>
+                    <div className='font-medium text-navy text-sm truncate'>
+                      {m.first_name} {m.last_name}
+                    </div>
+                    <div className='text-xs text-text-muted truncate'>{m.email}</div>
+                    <div className='mt-1 flex items-center gap-2 flex-wrap'>
+                      <VoicePartBadge part={m.voice_part} />
+                      {!m.user_id && (
+                        <span className='inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200'>
+                          <AlertCircle className='w-3 h-3' />
+                          No login
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className='text-xs text-text-muted truncate'>{m.email}</div>
-                  <div className='mt-1'>
-                    <VoicePartBadge part={m.voice_part} />
-                  </div>
-                </div>
-                <ChevronRight className='w-4 h-4 text-text-muted flex-shrink-0' />
+                  <ChevronRight className='w-4 h-4 text-text-muted flex-shrink-0' />
+                </button>
               </li>
             ))}
           </ul>
@@ -233,8 +349,16 @@ export default function AdminMembers() {
                       <div className='flex items-center gap-3 min-w-0'>
                         <MemberAvatar firstName={m.first_name} lastName={m.last_name} voicePart={m.voice_part} size='sm' />
                         <div className='min-w-0'>
-                          <div className='font-medium text-navy text-sm truncate'>
-                            {m.first_name} {m.last_name}
+                          <div className='font-medium text-navy text-sm truncate flex items-center gap-2'>
+                            <span className='truncate'>
+                              {m.first_name} {m.last_name}
+                            </span>
+                            {!m.user_id && (
+                              <span className='inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0'>
+                                <AlertCircle className='w-3 h-3' />
+                                No login
+                              </span>
+                            )}
                           </div>
                           <div className='text-xs text-text-muted truncate'>{m.email}</div>
                         </div>
@@ -259,8 +383,21 @@ export default function AdminMembers() {
                     </td>
                     <td className='px-4 py-3'>
                       <div className='flex items-center justify-end gap-1'>
+                        {!m.user_id && (
+                          <button
+                            type='button'
+                            disabled={resendingId === m.id}
+                            onClick={() => handleResend(m)}
+                            className='p-2 min-h-[36px] min-w-[36px] text-amber-700 hover:bg-amber-50 rounded-lg disabled:opacity-50'
+                            aria-label='Resend invite'
+                            title='Resend invitation'
+                          >
+                            <Send className='w-4 h-4' />
+                          </button>
+                        )}
                         <button
                           type='button'
+                          onClick={() => setEditingMember(m)}
                           className='p-2 min-h-[36px] min-w-[36px] text-text-muted hover:text-navy hover:bg-surface-3 rounded-lg'
                           aria-label='Edit'
                         >
@@ -284,12 +421,18 @@ export default function AdminMembers() {
         )}
       </div>
 
-      {addOpen && (
-        <AddMemberPanel
-          onClose={() => setAddOpen(false)}
-          onCreated={async () => {
-            await loadMembers()
+      {panelOpen && (
+        <MemberPanel
+          editingMember={editingMember}
+          onClose={() => {
             setAddOpen(false)
+            setEditingMember(null)
+          }}
+          onSuccess={async (message) => {
+            setAddOpen(false)
+            setEditingMember(null)
+            await loadMembers()
+            showSuccess(message)
           }}
         />
       )}
@@ -297,31 +440,41 @@ export default function AdminMembers() {
   )
 }
 
-function AddMemberPanel({
+function MemberPanel({
+  editingMember,
   onClose,
-  onCreated,
+  onSuccess,
 }: {
+  editingMember: Member | null
   onClose: () => void
-  onCreated: () => void | Promise<void>
+  onSuccess: (message: string) => void | Promise<void>
 }) {
-  const { choir, organization } = useAuth()
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [voicePart, setVoicePart] = useState<VoicePart | ''>('')
-  const [role, setRole] = useState<MemberRole>('member')
+  const { choir, organization, member: currentAdmin } = useAuth()
+  const isEdit = editingMember !== null
+
+  const [firstName, setFirstName] = useState(editingMember?.first_name || '')
+  const [lastName, setLastName] = useState(editingMember?.last_name || '')
+  const [email, setEmail] = useState(editingMember?.email || '')
+  const [phone, setPhone] = useState(editingMember?.phone || '')
+  const [voicePart, setVoicePart] = useState<VoicePart | ''>(editingMember?.voice_part || '')
+  const [role, setRole] = useState<MemberRole>(editingMember?.role || 'member')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function onSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault()
     setError(null)
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      setError('First name, last name, and email are required.')
+
+    const firstClean = firstName.trim()
+    const lastClean = lastName.trim()
+    const emailClean = email.trim()
+    const phoneClean = phone.trim()
+
+    if (!firstClean || !emailClean) {
+      setError('First name and email are required.')
       return
     }
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+    if (!/^\S+@\S+\.\S+$/.test(emailClean)) {
       setError('Enter a valid email address.')
       return
     }
@@ -329,24 +482,44 @@ function AddMemberPanel({
       setError('No choir selected.')
       return
     }
+
     setSubmitting(true)
-    const created = await createMember({
-      choir_id: choir.id,
-      organization_id: organization.id,
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      email: email.trim(),
-      phone: phone.trim() || undefined,
-      voice_part: voicePart || undefined,
-      role,
-      status: 'pending',
-    } as any)
-    setSubmitting(false)
-    if (!created) {
-      setError('Could not add member. Try again.')
+
+    if (isEdit && editingMember) {
+      const updated = await updateMember(editingMember.id, {
+        first_name: firstClean,
+        last_name: lastClean,
+        phone: phoneClean || undefined,
+        voice_part: (voicePart || undefined) as VoicePart | undefined,
+        role,
+      })
+      setSubmitting(false)
+      if (!updated) {
+        setError('Could not save changes. Try again.')
+        return
+      }
+      await onSuccess(`${firstClean}'s profile has been updated.`)
       return
     }
-    await onCreated()
+
+    const { ok, message } = await inviteMember({
+      firstName: firstClean,
+      lastName: lastClean,
+      email: emailClean,
+      phone: phoneClean || undefined,
+      voicePart: (voicePart || undefined) as VoicePart | undefined,
+      role,
+      choirId: choir.id,
+      organizationId: organization.id,
+      inviterName: currentAdmin?.first_name,
+      choirName: choir.name,
+    })
+    setSubmitting(false)
+    if (!ok) {
+      setError(message)
+      return
+    }
+    await onSuccess(message)
   }
 
   return (
@@ -354,7 +527,7 @@ function AddMemberPanel({
       <div className='absolute inset-0 bg-black/40 backdrop-blur-sm' onClick={onClose} />
       <div className='ml-auto relative bg-white w-full sm:w-[480px] h-full flex flex-col shadow-xl'>
         <div className='h-14 px-5 border-b border-border flex items-center justify-between flex-shrink-0'>
-          <h2 className='font-medium text-navy'>Add Member</h2>
+          <h2 className='font-medium text-navy'>{isEdit ? 'Edit Member' : 'Invite Member'}</h2>
           <button
             type='button'
             onClick={onClose}
@@ -386,8 +559,14 @@ function AddMemberPanel({
               type='email'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className='w-full border border-border rounded-lg px-3 py-2 text-sm min-h-[44px] focus:outline-none focus:border-blue'
+              disabled={isEdit}
+              className='w-full border border-border rounded-lg px-3 py-2 text-sm min-h-[44px] focus:outline-none focus:border-blue disabled:bg-surface-2 disabled:text-text-muted'
             />
+            {isEdit && (
+              <span className='mt-1 block text-[10px] text-text-muted'>
+                Email cannot be changed
+              </span>
+            )}
           </Field>
           <Field label='Phone'>
             <input
@@ -423,6 +602,12 @@ function AddMemberPanel({
               <option value='admin'>Admin</option>
             </select>
           </Field>
+          {!isEdit && (
+            <div className='bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-800'>
+              They&rsquo;ll receive an email to set their password and join{' '}
+              {choir?.name || 'your choir'}.
+            </div>
+          )}
           {error && (
             <div className='bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-sm text-danger'>
               {error}
@@ -440,10 +625,10 @@ function AddMemberPanel({
           <button
             type='button'
             disabled={submitting}
-            onClick={(e) => onSubmit(e as any)}
+            onClick={() => onSubmit()}
             className='bg-blue text-white rounded-lg px-4 py-2 text-sm font-medium min-h-[44px] hover:bg-blue-light transition-colors disabled:opacity-60'
           >
-            {submitting ? 'Adding…' : 'Add Member'}
+            {submitting ? (isEdit ? 'Saving…' : 'Inviting…') : isEdit ? 'Save Changes' : 'Send Invite'}
           </button>
         </div>
       </div>
