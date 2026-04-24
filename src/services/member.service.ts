@@ -23,6 +23,21 @@ export async function deleteMember(id: string): Promise<boolean> {
   return true
 }
 
+export async function createMember(
+  member: Omit<Member, 'id' | 'created_at' | 'joined_at'>,
+): Promise<Member | null> {
+  const { data, error } = await supabase
+    .from('members')
+    .insert(member)
+    .select()
+    .single()
+  if (error) {
+    console.error('createMember:', error.message)
+    return null
+  }
+  return data as Member
+}
+
 export async function getMemberByUserId(userId: string): Promise<Member | null> {
   const { data, error } = await supabase
     .from('members')

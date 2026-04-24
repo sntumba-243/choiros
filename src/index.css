@@ -1,15 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @theme {
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-serif: 'DM Serif Display', Georgia, serif;
+
+  --color-navy: #0F1929;
+  --color-navy-light: #1a2744;
+
+  --color-blue: #185FA5;
+  --color-blue-light: #378ADD;
+
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F8F9FB;
+  --color-surface-3: #F0F2F5;
+
+  --color-border: #E8ECF0;
+
+  --color-text-primary: #0F1929;
+  --color-text-secondary: #6B7A8D;
+  --color-text-muted: #9BA8B4;
+
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+
+  --color-soprano: #EC4899;
+  --color-alto: #8B5CF6;
+  --color-tenor: #3B82F6;
+  --color-bass: #10B981;
+
   --color-primary-50: #E6F1FB;
   --color-primary-100: #B5D4F4;
   --color-primary-500: #378ADD;
   --color-primary-600: #185FA5;
   --color-primary-700: #0C447C;
   --color-primary-900: #042C53;
-
-  --font-sans: 'Inter', system-ui, sans-serif;
 }
 
 * {
@@ -17,6 +42,36 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'DM Sans', system-ui, sans-serif;
   margin: 0;
+  color: var(--color-text-primary);
+  background: var(--color-surface-2);
+}
+
+[data-theme='gospel'] {
+  --color-navy: #2B1810;
+  --color-navy-light: #3D2518;
+  --color-blue: #C45A2E;
+  --color-blue-light: #E27642;
+}
+
+[data-theme='midnight'] {
+  --color-navy: #1E1B4B;
+  --color-navy-light: #2D2670;
+  --color-blue: #6D28D9;
+  --color-blue-light: #8B5CF6;
+}
+
+[data-theme='forest'] {
+  --color-navy: #0F2E23;
+  --color-navy-light: #1B4332;
+  --color-blue: #047857;
+  --color-blue-light: #10B981;
+}
+
+[data-theme='mono'] {
+  --color-navy: #111827;
+  --color-navy-light: #1F2937;
+  --color-blue: #111827;
+  --color-blue-light: #4B5563;
 }

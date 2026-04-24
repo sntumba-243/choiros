@@ -22,8 +22,8 @@ import Songs from './pages/app/Songs'
 import Attendance from './pages/app/Attendance'
 import Messages from './pages/app/Messages'
 import Settings from './pages/app/Settings'
-import AdminLayoutShell from './pages/admin/layout/AdminLayoutShell'
-import OrgAdmin from './pages/admin/OrgAdmin'
+import AdminLayout from './pages/admin/layout/AdminLayout'
+import Overview from './pages/admin/Overview'
 import AdminMembers from './pages/admin/Members'
 import AdminEvents from './pages/admin/Events'
 import AdminSongs from './pages/admin/Songs'
@@ -60,9 +60,9 @@ const router = createBrowserRouter([
   { path: '/app/choir/:choirId/settings', element: protect(<Settings />) },
   {
     path: '/admin',
-    element: protect(<AdminLayoutShell />),
+    element: protect(<AdminLayout />),
     children: [
-      { index: true, element: <OrgAdmin /> },
+      { index: true, element: <Overview /> },
       { path: 'members', element: <AdminMembers /> },
       { path: 'events', element: <AdminEvents /> },
       { path: 'songs', element: <AdminSongs /> },
