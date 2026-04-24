@@ -214,7 +214,7 @@ export default function AdminMembers() {
             ))}
           </ul>
         ) : (
-          <div className='bg-white rounded-xl border border-gray-100 overflow-hidden'>
+          <div className='bg-white rounded-xl border border-gray-100 overflow-x-auto'>
             <table className='w-full'>
               <thead className='bg-surface-2 border-b border-border'>
                 <tr className='text-left text-xs uppercase tracking-wide text-text-muted'>

@@ -15,10 +15,10 @@ export default function AdminLayout() {
         : 'pb-[72px]'
 
   return (
-    <div className='min-h-screen bg-surface-2 text-text-primary'>
+    <div className='min-h-screen bg-surface-2 text-text-primary overflow-x-hidden'>
       {sizeClass === 'expanded' && <SidebarFull />}
       {sizeClass === 'regular' && <NavigationRail />}
-      <div className={['flex-1 flex flex-col min-w-0', contentOffset].join(' ')}>
+      <div className={['flex flex-col min-w-0 max-w-full', contentOffset].join(' ')}>
         <Outlet />
       </div>
       {sizeClass === 'compact' && <BottomTabBar />}
