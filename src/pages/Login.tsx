@@ -31,6 +31,10 @@ export default function Login() {
 
   const onLogin = async (values: LoginForm) => {
     setError(null)
+    if (!import.meta.env.VITE_SUPABASE_URL) {
+      setError('App configuration error — contact support')
+      return
+    }
     setSubmitting(true)
     try {
       const { error } = await supabase.auth.signInWithPassword({
