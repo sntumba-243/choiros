@@ -9,7 +9,6 @@ import {
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { signOut as signOutService } from '../services/auth.service'
-import { getMemberByUserId } from '../services/member.service'
 import { getOrganizationById } from '../services/organization.service'
 import { getChoirById } from '../services/choir.service'
 import type { Member, Organization, Choir } from '../types/database'
@@ -37,16 +36,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-      const memberData = await getMemberByUserId(userId)
-      if (!memberData) {
-        setLoading(false)
+      const { data: memberData, error } = await supabase
+        .from('members')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
+
+      if (error || !memberData) {
+        console.error('fetchProfile: no member found for user', userId, error?.message)
         return
       }
-      setMember(memberData)
+
+      setMember(memberData as Member)
+
       const [orgData, choirData] = await Promise.all([
         getOrganizationById(memberData.organization_id),
         getChoirById(memberData.choir_id),
       ])
+
       if (orgData) setOrganization(orgData)
       if (choirData) setChoir(choirData)
     } catch (err) {
@@ -65,16 +72,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return
-      setSession(data.session)
-      setUser(data.session?.user ?? null)
-      if (data.session?.user) {
-        await fetchProfile(data.session.user.id)
-      } else {
-        setLoading(false)
-      }
-    })
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!mounted) return
+        setSession(data.session)
+        setUser(data.session?.user ?? null)
+        if (data.session?.user) {
+          await fetchProfile(data.session.user.id)
+        } else {
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        console.error('getSession error:', err)
+        if (mounted) setLoading(false)
+      })
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!mounted) return
