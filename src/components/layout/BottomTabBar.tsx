@@ -15,12 +15,19 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
-const TABS = [
+interface Tab {
+  to: string
+  label: string
+  icon: typeof LayoutDashboard
+  exact?: boolean
+}
+
+const TABS: Tab[] = [
   { to: '/admin', label: 'Home', icon: LayoutDashboard, exact: true },
   { to: '/admin/members', label: 'Members', icon: Users },
   { to: '/admin/events', label: 'Events', icon: Calendar },
   { to: '/admin/songs', label: 'Songs', icon: Music },
-] as const
+]
 
 const MORE_ITEMS = [
   { to: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
