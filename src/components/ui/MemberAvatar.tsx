@@ -2,7 +2,7 @@ interface MemberAvatarProps {
   firstName: string
   lastName: string
   voicePart?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 const VOICE_COLORS: Record<string, string> = {
@@ -18,6 +18,7 @@ const SIZE_CLASSES: Record<string, string> = {
   sm: 'w-8 h-8 text-xs',
   md: 'w-10 h-10 text-sm',
   lg: 'w-12 h-12 text-base',
+  xl: 'w-20 h-20 text-2xl',
 }
 
 export function MemberAvatar({ firstName, lastName, voicePart, size = 'md' }: MemberAvatarProps) {

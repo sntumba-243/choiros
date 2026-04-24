@@ -64,3 +64,20 @@ export async function updateMember(id: string, updates: Partial<Member>): Promis
   }
   return data as Member
 }
+
+export async function getMemberStats(
+  memberId: string,
+): Promise<{ attended: number; rsvps: number }> {
+  const [attendanceData, rsvpData] = await Promise.all([
+    supabase
+      .from('attendance')
+      .select('id', { count: 'exact', head: true })
+      .eq('member_id', memberId)
+      .eq('status', 'present'),
+    supabase.from('rsvps').select('id', { count: 'exact', head: true }).eq('member_id', memberId),
+  ])
+  return {
+    attended: attendanceData.count || 0,
+    rsvps: rsvpData.count || 0,
+  }
+}

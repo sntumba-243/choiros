@@ -15,13 +15,11 @@ import RegisterSuccess from './pages/RegisterSuccess'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import Dashboard from './pages/Dashboard'
-import ChoirDashboard from './pages/app/ChoirDashboard'
-import Members from './pages/app/Members'
-import Events from './pages/app/Events'
-import Songs from './pages/app/Songs'
-import Attendance from './pages/app/Attendance'
-import Messages from './pages/app/Messages'
-import Settings from './pages/app/Settings'
+import MemberLayout from './pages/app/layout/MemberLayout'
+import MemberHome from './pages/app/MemberHome'
+import MemberEvents from './pages/app/MemberEvents'
+import MemberSongs from './pages/app/MemberSongs'
+import MemberProfile from './pages/app/MemberProfile'
 import AdminLayout from './pages/admin/layout/AdminLayout'
 import Overview from './pages/admin/Overview'
 import AdminMembers from './pages/admin/Members'
@@ -51,13 +49,16 @@ const router = createBrowserRouter([
   { path: '/privacy', element: <Privacy /> },
   { path: '/terms', element: <Terms /> },
   { path: '/dashboard', element: protect(<Dashboard />) },
-  { path: '/app/choir/:choirId', element: protect(<ChoirDashboard />) },
-  { path: '/app/choir/:choirId/members', element: protect(<Members />) },
-  { path: '/app/choir/:choirId/events', element: protect(<Events />) },
-  { path: '/app/choir/:choirId/songs', element: protect(<Songs />) },
-  { path: '/app/choir/:choirId/attendance', element: protect(<Attendance />) },
-  { path: '/app/choir/:choirId/messages', element: protect(<Messages />) },
-  { path: '/app/choir/:choirId/settings', element: protect(<Settings />) },
+  {
+    path: '/app/choir/:choirId',
+    element: protect(<MemberLayout />),
+    children: [
+      { index: true, element: <MemberHome /> },
+      { path: 'events', element: <MemberEvents /> },
+      { path: 'songs', element: <MemberSongs /> },
+      { path: 'profile', element: <MemberProfile /> },
+    ],
+  },
   {
     path: '/admin',
     element: protect(<AdminLayout />),
