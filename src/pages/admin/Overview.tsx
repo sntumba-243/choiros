@@ -162,7 +162,8 @@ export default function Overview() {
       <div className='px-4 sm:px-5 py-5 space-y-5 max-w-7xl mx-auto w-full'>
         <div>
           <h1 className='font-serif text-2xl sm:text-3xl text-navy'>
-            {greeting()}, {member?.first_name || 'there'}
+            {greeting()}
+            {authLoading ? '…' : `, ${member?.first_name || organization?.name || 'there'}`}
           </h1>
           <div className='mt-1 flex flex-wrap items-center gap-2 text-sm text-text-secondary'>
             <span className='truncate'>{choir?.name || 'Your choir'}</span>
