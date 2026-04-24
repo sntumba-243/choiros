@@ -76,7 +76,7 @@ function voiceDistribution(members: Member[]) {
 }
 
 export default function Overview() {
-  const { member, choir, organization } = useAuth()
+  const { member, choir, organization, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
   const [members, setMembers] = useState<Member[]>([])
@@ -87,7 +87,11 @@ export default function Overview() {
   const [fetchError, setFetchError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!choir?.id) return
+    if (authLoading) return
+    if (!choir?.id) {
+      setLoading(false)
+      return
+    }
     let cancelled = false
     ;(async () => {
       setLoading(true)
@@ -113,7 +117,7 @@ export default function Overview() {
     return () => {
       cancelled = true
     }
-  }, [choir?.id])
+  }, [authLoading, choir?.id])
 
   const voice = voiceDistribution(members)
   const totalMembers = members.length
