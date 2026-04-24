@@ -2,21 +2,10 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { signIn, resetPassword } from '../services/auth.service'
+import { loginSchema, resetSchema, type LoginForm, type ResetForm } from '../schemas/auth.schemas'
 import { Logo } from '../components/Logo'
-
-const loginSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-})
-type LoginForm = z.infer<typeof loginSchema>
-
-const resetSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
-})
-type ResetForm = z.infer<typeof resetSchema>
 
 export default function Login() {
   const navigate = useNavigate()
@@ -37,14 +26,7 @@ export default function Login() {
     }
     setSubmitting(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      })
-      if (error) {
-        setError(error.message)
-        return
-      }
+      await signIn(values.email, values.password)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err?.message || 'Sign in failed')
@@ -56,15 +38,14 @@ export default function Login() {
   const onReset = async (values: ResetForm) => {
     setError(null)
     setSubmitting(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
-      redirectTo: `${window.location.origin}/login`,
-    })
-    setSubmitting(false)
-    if (error) {
-      setError(error.message)
-      return
+    try {
+      await resetPassword(values.email)
+      setResetSent(true)
+    } catch (err: any) {
+      setError(err?.message || 'Reset failed')
+    } finally {
+      setSubmitting(false)
     }
-    setResetSent(true)
   }
 
   return (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { getSession } from '../services/auth.service'
+import { getMemberByUserId } from '../services/member.service'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -8,14 +9,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function redirect() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const session = await getSession()
       if (!session) { navigate('/login'); return }
 
-      const { data: member } = await supabase
-        .from('members')
-        .select('role, choir_id')
-        .eq('user_id', session.user.id)
-        .single()
+      const member = await getMemberByUserId(session.user.id)
 
       if (!member) { navigate('/register/success'); return }
       if (member.role === 'admin') { navigate('/admin'); return }

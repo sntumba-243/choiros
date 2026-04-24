@@ -1,10 +1,9 @@
 import { Resend } from 'resend'
+import { applyCors, handleOptions } from './_utils/cors'
 
 export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  applyCors(res)
+  if (handleOptions(req, res)) return
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
@@ -13,7 +12,9 @@ export default async function handler(req: any, res: any) {
     if (!to || !subject || !html) return res.status(400).json({ error: 'Missing fields' })
     const { data, error } = await resend.emails.send({
       from: 'ChoirOS <noreply@choiros.app>',
-      to, subject, html
+      to,
+      subject,
+      html,
     })
     if (error) return res.status(500).json({ error })
     return res.status(200).json({ data })

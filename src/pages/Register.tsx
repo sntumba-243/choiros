@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Check, Loader2, ArrowRight, ArrowLeft } from 'lucide-react'
 import { Logo } from '../components/Logo'
 import { PLANS, type PlanId } from '../lib/stripe'
+import { api } from '../lib/api'
+import { registerSchema, type RegisterForm } from '../schemas/auth.schemas'
 
 const TIMEZONES = [
   'America/New_York',
@@ -24,15 +25,7 @@ const TIMEZONES = [
 
 const CHOIR_SIZES = ['1-10', '11-25', '26-50', '51-100', '100+']
 
-const accountSchema = z.object({
-  choirName: z.string().min(2, 'Choir name is required'),
-  adminName: z.string().min(2, 'Your name is required'),
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(8, 'Minimum 8 characters'),
-  choirSize: z.string().min(1, 'Select a size'),
-  timezone: z.string().min(1, 'Select a timezone'),
-})
-type AccountForm = z.infer<typeof accountSchema>
+type AccountForm = RegisterForm
 
 function passwordStrength(pw: string): { label: string; score: number; color: string } {
   let score = 0
@@ -121,7 +114,7 @@ export default function Register() {
   const [processing, setProcessing] = useState(false)
 
   const form = useForm<AccountForm>({
-    resolver: zodResolver(accountSchema),
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       choirName: '',
       adminName: '',
@@ -156,42 +149,27 @@ export default function Register() {
       setError(null)
       try {
         if (plan === 'free') {
-          const res = await fetch('/api/free-signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: account.email,
-              password: account.password,
-              choirName: account.choirName,
-              adminName: account.adminName,
-              choirSize: account.choirSize,
-              timezone: account.timezone,
-            }),
+          const { error: apiError } = await api.freeSignup({
+            email: account.email,
+            password: account.password,
+            choirName: account.choirName,
+            adminName: account.adminName,
+            choirSize: account.choirSize,
+            timezone: account.timezone,
           })
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}))
-            throw new Error(data.error || 'Sign up failed')
-          }
+          if (apiError) throw new Error(apiError)
           if (!cancelled) navigate('/register/success')
         } else {
-          const res = await fetch('/api/create-checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              plan,
-              email: account.email,
-              choirName: account.choirName,
-              adminName: account.adminName,
-              choirSize: account.choirSize,
-              timezone: account.timezone,
-            }),
+          const { data, error: apiError } = await api.createCheckout({
+            plan,
+            email: account.email,
+            choirName: account.choirName,
+            adminName: account.adminName,
+            choirSize: account.choirSize,
+            timezone: account.timezone,
           })
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}))
-            throw new Error(data.error || 'Checkout failed')
-          }
-          const data = await res.json()
-          if (!cancelled && data.url) {
+          if (apiError) throw new Error(apiError)
+          if (!cancelled && data?.url) {
             window.location.href = data.url
           }
         }

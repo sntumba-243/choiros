@@ -8,6 +8,10 @@ import {
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { signOut as signOutService } from '../services/auth.service'
+import { getMemberByUserId } from '../services/member.service'
+import { getOrganizationById } from '../services/organization.service'
+import { getChoirById } from '../services/choir.service'
 import type { Member, Organization, Choir } from '../types/database'
 
 interface AuthContextValue {
@@ -33,21 +37,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-      const { data: memberData, error } = await supabase
-        .from('members')
-        .select('*, organizations:organization_id(*), choirs:choir_id(*)')
-        .eq('user_id', userId)
-        .single()
-
-      if (error || !memberData) {
+      const memberData = await getMemberByUserId(userId)
+      if (!memberData) {
         setLoading(false)
         return
       }
-
-      const { organizations, choirs, ...member } = memberData
-      setMember(member as Member)
-      if (organizations) setOrganization(organizations as any)
-      if (choirs) setChoir(choirs as any)
+      setMember(memberData)
+      const [orgData, choirData] = await Promise.all([
+        getOrganizationById(memberData.organization_id),
+        getChoirById(memberData.choir_id),
+      ])
+      if (orgData) setOrganization(orgData)
+      if (choirData) setChoir(choirData)
     } catch (err) {
       console.error('fetchProfile error:', err)
     } finally {
@@ -75,21 +76,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (!mounted) return
-        setSession(newSession)
-        setUser(newSession?.user ?? null)
-        if (newSession?.user) {
-          await fetchProfile(newSession.user.id)
-        } else {
-          setMember(null)
-          setOrganization(null)
-          setChoir(null)
-          setLoading(false)
-        }
-      },
-    )
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      if (!mounted) return
+      setSession(newSession)
+      setUser(newSession?.user ?? null)
+      if (newSession?.user) {
+        await fetchProfile(newSession.user.id)
+      } else {
+        setMember(null)
+        setOrganization(null)
+        setChoir(null)
+        setLoading(false)
+      }
+    })
 
     return () => {
       mounted = false
@@ -98,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile])
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    await signOutService()
     window.location.href = '/'
   }
 
