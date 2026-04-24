@@ -1,21 +1,19 @@
 import { createClient } from '@supabase/supabase-js'
 
-function applyCors(res: any) {
-  res.setHeader('Access-Control-Allow-Origin', process.env.VITE_APP_URL || 'https://choiros.app')
+export default async function handler(req: any, res: any) {
+  const appUrl = (process.env.VITE_APP_URL || 'https://choiros.app').trim()
+  res.setHeader('Access-Control-Allow-Origin', appUrl)
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-}
 
-export default async function handler(req: any, res: any) {
-  applyCors(res)
   if (req.method === 'OPTIONS') {
     res.status(200).end()
     return
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const url = process.env.SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const url = (process.env.SUPABASE_URL || '').trim()
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
   if (!url || !serviceKey) {
     return res.status(500).json({ error: 'Server configuration error' })
   }
@@ -44,7 +42,6 @@ export default async function handler(req: any, res: any) {
     const normalizedEmail = String(email).trim().toLowerCase()
     const firstNameClean = (firstName || '').trim()
     const lastNameClean = (lastName || '').trim()
-    const appUrl = process.env.VITE_APP_URL || 'https://choiros.app'
 
     const memberPayload: Record<string, any> = {
       choir_id: choirId,
