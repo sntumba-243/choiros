@@ -70,10 +70,22 @@ export interface Song {
   choir_id?: string
   title: string
   composer?: string
+  arranger?: string
   language?: string
   voice_parts?: string[]
   partition_url?: string
   audio_url?: string
   tags?: string[]
   created_at: string
+}
+
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
+
+export interface Attendance {
+  id: string
+  event_id: string
+  member_id: string
+  status: AttendanceStatus
+  checked_in_at?: string
+  notes?: string
 }

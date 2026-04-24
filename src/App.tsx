@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ErrorBoundary } from './components/shared/ErrorBoundary'
+import { useTheme } from './hooks/useTheme'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -21,7 +22,14 @@ import Songs from './pages/app/Songs'
 import Attendance from './pages/app/Attendance'
 import Messages from './pages/app/Messages'
 import Settings from './pages/app/Settings'
+import AdminLayoutShell from './pages/admin/layout/AdminLayoutShell'
 import OrgAdmin from './pages/admin/OrgAdmin'
+import AdminMembers from './pages/admin/Members'
+import AdminEvents from './pages/admin/Events'
+import AdminSongs from './pages/admin/Songs'
+import AdminAttendance from './pages/admin/Attendance'
+import AdminMessages from './pages/admin/Messages'
+import AdminSettings from './pages/admin/Settings'
 import Billing from './pages/admin/Billing'
 
 const queryClient = new QueryClient({
@@ -50,12 +58,25 @@ const router = createBrowserRouter([
   { path: '/app/choir/:choirId/attendance', element: protect(<Attendance />) },
   { path: '/app/choir/:choirId/messages', element: protect(<Messages />) },
   { path: '/app/choir/:choirId/settings', element: protect(<Settings />) },
-  { path: '/admin', element: protect(<OrgAdmin />) },
-  { path: '/admin/billing', element: protect(<Billing />) },
+  {
+    path: '/admin',
+    element: protect(<AdminLayoutShell />),
+    children: [
+      { index: true, element: <OrgAdmin /> },
+      { path: 'members', element: <AdminMembers /> },
+      { path: 'events', element: <AdminEvents /> },
+      { path: 'songs', element: <AdminSongs /> },
+      { path: 'attendance', element: <AdminAttendance /> },
+      { path: 'messages', element: <AdminMessages /> },
+      { path: 'settings', element: <AdminSettings /> },
+      { path: 'billing', element: <Billing /> },
+    ],
+  },
   { path: '*', element: <Navigate to="/" replace /> },
 ])
 
 function App() {
+  useTheme()
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
