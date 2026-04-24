@@ -11,6 +11,7 @@ export interface ProvisionInput {
   stripeCustomerId?: string
   stripeSubscriptionId?: string
   subscriptionStatus?: string
+  skipWelcomeEmail?: boolean
 }
 
 export interface ProvisionResult {
@@ -24,15 +25,26 @@ export async function provisionAccount(input: ProvisionInput): Promise<Provision
   const supabase = createServerSupabase()
   const { email, adminName, choirName, timezone, plan, stripeCustomerId, stripeSubscriptionId } = input
 
-  const userPayload: { email: string; email_confirm: boolean; password?: string } = {
-    email,
-    email_confirm: true,
-  }
-  if (input.password) userPayload.password = input.password
+  const { data: existingUsers } = await supabase.auth.admin.listUsers()
+  const existingUser = existingUsers?.users?.find(
+    (u) => u.email?.toLowerCase() === email.toLowerCase(),
+  )
 
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser(userPayload)
-  if (authError || !authData?.user) throw new Error('Auth error: ' + (authError?.message || 'unknown'))
-  const userId = authData.user.id
+  let userId: string
+  if (existingUser) {
+    userId = existingUser.id
+  } else {
+    const userPayload: { email: string; email_confirm: boolean; password?: string } = {
+      email,
+      email_confirm: true,
+    }
+    if (input.password) userPayload.password = input.password
+
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser(userPayload)
+    if (authError || !authData?.user)
+      throw new Error('Auth error: ' + (authError?.message || 'unknown'))
+    userId = authData.user.id
+  }
 
   const slug =
     choirName
@@ -97,7 +109,9 @@ export async function provisionAccount(input: ProvisionInput): Promise<Provision
     .single()
   if (memberError) throw new Error('Member error: ' + memberError.message)
 
-  await sendWelcomeEmail(email, adminName, choirName)
+  if (!input.skipWelcomeEmail) {
+    await sendWelcomeEmail(email, adminName, choirName)
+  }
 
   return { userId, orgId: org.id, choirId: choir.id, memberId: member.id }
 }

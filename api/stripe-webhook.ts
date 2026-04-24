@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { createServerSupabase } from './_utils/supabase'
 import { provisionAccount } from './_utils/provision'
+import { sendWelcomeEmail } from './_utils/email'
 
 export const config = {
   api: {
@@ -61,15 +62,37 @@ export default async function handler(req: any, res: any) {
 
         const md = session.metadata || {}
         const plan = (md.plan as 'starter' | 'growth' | 'network') || 'starter'
+        const email = md.email || session.customer_email || ''
+        const adminName = md.adminName || ''
+        const choirName = md.choirName || 'My Choir'
+
         await provisionAccount({
-          email: md.email || session.customer_email || '',
-          choirName: md.choirName || 'My Choir',
-          adminName: md.adminName || '',
+          email,
+          choirName,
+          adminName,
           timezone: md.timezone,
           plan,
           stripeCustomerId: typeof session.customer === 'string' ? session.customer : undefined,
           stripeSubscriptionId: subscriptionId,
+          skipWelcomeEmail: true,
         })
+
+        try {
+          const { data: linkData } = await supabase.auth.admin.generateLink({
+            type: 'recovery',
+            email,
+            options: { redirectTo: 'https://choiros.app/login' },
+          })
+          const actionLink = (linkData as any)?.properties?.action_link as string | undefined
+          if (actionLink) {
+            await sendWelcomeEmail(email, adminName, choirName, actionLink)
+          } else {
+            await sendWelcomeEmail(email, adminName, choirName)
+          }
+        } catch (e) {
+          console.error('recovery link failed', e)
+          await sendWelcomeEmail(email, adminName, choirName)
+        }
         break
       }
       case 'customer.subscription.updated': {
